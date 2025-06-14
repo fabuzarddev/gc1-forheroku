@@ -5,6 +5,7 @@ import (
 	"gc1/handler"
 	"gc1/repository"
 	"gc1/service"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,5 +30,10 @@ func main() {
 		EmployeeRoutes.DELETE("/:id", employeeHandler.DeleteEmployee)
 	}
 
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // fallback for local
+	}
+	r.Run(":" + port)
+
 }
