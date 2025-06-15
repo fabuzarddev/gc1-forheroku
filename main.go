@@ -7,6 +7,7 @@ import (
 	"gc1/service"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -28,6 +29,12 @@ func main() {
 	router.PUT("/employees/:id", employeeHandler.UpdateEmployee)
 	router.DELETE("/employees/:id", employeeHandler.DeleteEmployee)
 
-	log.Println("Server running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // fallback for local dev
+	}
+
+	log.Println("Server running on port", port)
+	log.Fatal(http.ListenAndServe(":"+port, router))
+
 }
