@@ -4,12 +4,13 @@ import (
 	"errors"
 	"gc1/model"
 	"gc1/repository"
+	"strings"
 )
 
 type EmployeeService interface {
-	GetAllEmployees() ([]model.Employee, error)
+	GetAllEmployees() ([]model.ShortEmployee, error)
 	GetEmployeeById(id int) (model.Employee, error)
-	CreateEmployee(Employee model.Employee) (model.Employee, error)
+	CreateEmployee(Employee model.Employee) (model.ShortEmployee, error)
 	UpdateEmployee(id int, Employee model.Employee) (model.Employee, error)
 	DeleteEmployee(id int) error
 }
@@ -24,7 +25,7 @@ func NewEmployeeService(r repository.EmployeeRepository) EmployeeService {
 
 // Get all employees
 
-func (s *employeeService) GetAllEmployees() ([]model.Employee, error) {
+func (s *employeeService) GetAllEmployees() ([]model.ShortEmployee, error) {
 	return s.repo.GetAllEmployees()
 }
 
@@ -36,11 +37,21 @@ func (s *employeeService) GetEmployeeById(id int) (model.Employee, error) {
 
 // Create employee
 
-func (s *employeeService) CreateEmployee(employee model.Employee) (model.Employee, error) {
+func (s *employeeService) CreateEmployee(employee model.Employee) (model.ShortEmployee, error) {
 	if employee.Name == "" || employee.Email == "" || employee.Phone == "" {
-		return model.Employee{}, errors.New("nama, email, dan phone wajib di isi")
+		return model.ShortEmployee{}, errors.New("nama, email, dan phone wajib di isi")
 	}
-	return s.repo.CreateEmployee(employee)
+
+	createdEmployee, err := s.repo.CreateEmployee(employee)
+	if err != nil {
+		// Cek duplicate
+		if strings.Contains(err.Error(), "Duplicate entry") {
+			return model.ShortEmployee{}, errors.New("email sudah digunakan")
+		}
+		return model.ShortEmployee{}, err
+	}
+
+	return createdEmployee, nil
 }
 
 // Update employee

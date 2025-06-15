@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
 	"gc1/model"
 	"gc1/service"
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
+	"github.com/julienschmidt/httprouter"
 )
 
 type EmployeeHandler struct {
@@ -17,85 +18,102 @@ func NewEmployeeHandler(s service.EmployeeService) *EmployeeHandler {
 	return &EmployeeHandler{Service: s}
 }
 
-// Get all product
-
-func (h *EmployeeHandler) GetAllEmployees(c *gin.Context) {
-	product, err := h.Service.GetAllEmployees()
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, product)
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
 }
 
-// Get by id
-func (h *EmployeeHandler) GetEmployeeById(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+func (h *EmployeeHandler) GetAllEmployees(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	employees, err := h.Service.GetAllEmployees()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid id"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if len(employees) == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"message": "Tidak ada data employee"})
+		return
+
+	}
+
+	writeJSON(w, http.StatusOK, employees)
+}
+
+func (h *EmployeeHandler) GetEmployeeById(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	id, err := strconv.Atoi(ps.ByName("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid ID"})
 		return
 	}
 
 	employee, err := h.Service.GetEmployeeById(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, employee)
+	writeJSON(w, http.StatusOK, employee)
 }
 
-// Create employee
-
-func (h *EmployeeHandler) CreateEmployee(c *gin.Context) {
+func (h *EmployeeHandler) CreateEmployee(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var employee model.Employee
-	if err := c.ShouldBindJSON(&employee); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&employee); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	createdEmployee, err := h.Service.CreateEmployee(employee)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
-	}
-	c.JSON(http.StatusCreated, createdEmployee)
 
+	created, err := h.Service.CreateEmployee(employee)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	response := model.SuccessResponse{
+		Message: "Karyawan berhasil ditambahkan",
+		Data:    created,
+	}
+
+	writeJSON(w, http.StatusCreated, response)
 }
 
-// Update employee
-func (h *EmployeeHandler) UpdateEmployee(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+func (h *EmployeeHandler) UpdateEmployee(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	id, err := strconv.Atoi(ps.ByName("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid id"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid ID"})
 		return
 	}
+
 	var employee model.Employee
-	if err := c.ShouldBindJSON(&employee); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+	if err := json.NewDecoder(r.Body).Decode(&employee); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
-	updatedEmployee, err := h.Service.UpdateEmployee(id, employee)
+	updated, err := h.Service.UpdateEmployee(id, employee)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid id"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, updatedEmployee)
 
+	response := model.SuccessResponse{
+		Message: "Karyawan berhasil diupdate",
+		Data:    updated,
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
 
-// Delete employee
-func (h *EmployeeHandler) DeleteEmployee(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+func (h *EmployeeHandler) DeleteEmployee(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	id, err := strconv.Atoi(ps.ByName("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": "Invalid id"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid ID"})
 		return
 	}
 
 	if err := h.Service.DeleteEmployee(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Employee deleted successfully"})
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Employee deleted successfully"})
 }

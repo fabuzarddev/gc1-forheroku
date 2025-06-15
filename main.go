@@ -5,9 +5,10 @@ import (
 	"gc1/handler"
 	"gc1/repository"
 	"gc1/service"
-	"os"
+	"log"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/julienschmidt/httprouter"
 )
 
 func main() {
@@ -19,21 +20,14 @@ func main() {
 	employeeService := service.NewEmployeeService(employeeRepo)
 	employeeHandler := handler.NewEmployeeHandler(employeeService)
 
-	r := gin.Default()
+	router := httprouter.New()
 
-	EmployeeRoutes := r.Group("/employees")
-	{
-		EmployeeRoutes.GET("", employeeHandler.GetAllEmployees)
-		EmployeeRoutes.GET("/:id", employeeHandler.GetEmployeeById)
-		EmployeeRoutes.POST("/addemployee", employeeHandler.CreateEmployee)
-		EmployeeRoutes.PUT("/:id", employeeHandler.UpdateEmployee)
-		EmployeeRoutes.DELETE("/:id", employeeHandler.DeleteEmployee)
-	}
+	router.GET("/employees", employeeHandler.GetAllEmployees)
+	router.GET("/employees/:id", employeeHandler.GetEmployeeById)
+	router.POST("/employees/addemployee", employeeHandler.CreateEmployee)
+	router.PUT("/employees/:id", employeeHandler.UpdateEmployee)
+	router.DELETE("/employees/:id", employeeHandler.DeleteEmployee)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080" // fallback for local
-	}
-	r.Run(":" + port)
-
+	log.Println("Server running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
